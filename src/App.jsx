@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 const STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Mono:wght@400;700&display=swap');
-  *{box-sizing:border-box;margin:0;padding:0;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{overscroll-behavior:none;touch-action:none;}
   @keyframes rainFall{
     0%{transform:translateY(-30px) skewX(-18deg);opacity:0;}
     10%{opacity:.6;} 90%{opacity:.3;}
@@ -13,61 +14,95 @@ const STYLES = `
     0%,100%{transform:translateX(0);}
     25%{transform:translateX(-3px);} 75%{transform:translateX(3px);}
   }
-  @keyframes popIn{
-    from{transform:scale(.85);opacity:0;}
-    to{transform:scale(1);opacity:1;}
-  }
-  @keyframes lightningFlash{
-    0%,100%{opacity:0;}
-    10%,30%{opacity:1;}
-    20%{opacity:.3;}
-  }
+  @keyframes popIn{from{transform:scale(.85);opacity:0;}to{transform:scale(1);opacity:1;}}
+  @keyframes lightningFlash{0%,100%{opacity:0;}10%,30%{opacity:1;}20%{opacity:.3;}}
   @keyframes screenShake{
     0%,100%{transform:translate(0,0);}
     25%{transform:translate(-4px,2px);}
     50%{transform:translate(4px,-2px);}
     75%{transform:translate(-2px,4px);}
   }
-  @keyframes windSway{
-    0%,100%{transform:rotate(-2deg);}
-    50%{transform:rotate(2deg);}
-  }
-  @keyframes legSwing1{
-    0%,100%{transform:translateY(0) rotate(0deg);}
-    50%{transform:translateY(-1px) rotate(20deg);}
-  }
-  @keyframes legSwing2{
-    0%,100%{transform:translateY(-1px) rotate(20deg);}
-    50%{transform:translateY(0) rotate(0deg);}
-  }
-  @keyframes armSwing1{
-    0%,100%{transform:rotate(-15deg);}
-    50%{transform:rotate(15deg);}
-  }
-  @keyframes armSwing2{
-    0%,100%{transform:rotate(15deg);}
-    50%{transform:rotate(-15deg);}
-  }
-  @keyframes bodyBob{
-    0%,100%{transform:translateY(0);}
-    50%{transform:translateY(-1.5px);}
-  }
-  @keyframes hitFlash{
-    0%,100%{filter:none;}
-    50%{filter:brightness(2) saturate(2) hue-rotate(-30deg);}
-  }
+  @keyframes windSway{0%,100%{transform:rotate(-2deg);}50%{transform:rotate(2deg);}}
+  @keyframes legSwing1{0%,100%{transform:rotate(0deg);}50%{transform:rotate(20deg);}}
+  @keyframes legSwing2{0%,100%{transform:rotate(20deg);}50%{transform:rotate(0deg);}}
+  @keyframes armSwing1{0%,100%{transform:rotate(-15deg);}50%{transform:rotate(15deg);}}
+  @keyframes armSwing2{0%,100%{transform:rotate(15deg);}50%{transform:rotate(-15deg);}}
+  @keyframes bodyBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-1.5px);}}
+  @keyframes hitFlash{0%,100%{filter:none;}50%{filter:brightness(2) saturate(2) hue-rotate(-30deg);}}
+  @keyframes cableSway{0%,100%{transform:translateY(0);}50%{transform:translateY(3px);}}
   .btn{transition:transform .14s,filter .14s;cursor:pointer;}
   .btn:hover{transform:translateY(-2px);filter:brightness(1.1);}
   .btn:active{transform:scale(.97);}
+  .dpad-btn{user-select:none;-webkit-user-select:none;touch-action:none;transition:transform .1s,background .1s;}
+  .dpad-btn.active{transform:scale(.9);background:#fbbf24cc!important;}
 `;
 
 const PX_PER_METER = 10;
 const FPS = 60;
-const DEBRIS_HITBOX = 28;
 const CHAR_HITBOX = 18;
-const SLOW_DURATION = 1500; // ms slowed after hit
-const SLOW_FACTOR = 0.45;   // speed multiplier when hit
-const HIT_COOLDOWN = 800;   // ms invincibility after hit
+const SLOW_DURATION = 1500;
+const SLOW_FACTOR = 0.45;
+const HIT_COOLDOWN = 800;
+
+// ─── BUILDING SVG (gedung untuk background) ─────────────────
+function BuildingSVG({type, color}) {
+  if (type === "highrise") {
+    return (
+      <svg viewBox="0 0 80 120" style={{width:"100%",height:"100%"}}>
+        <rect x="0" y="0" width="80" height="120" fill={color}/>
+        <rect x="0" y="0" width="80" height="4" fill="#000" opacity="0.4"/>
+        {Array.from({length:10}).map((_,r)=>(
+          Array.from({length:4}).map((_,c)=>(
+            <rect key={`w-${r}-${c}`} x={8 + c*16} y={10 + r*11} width="8" height="6"
+              fill={Math.random()>0.7 ? "#fde68a" : "#1a2f4a"}/>
+          ))
+        ))}
+        <rect x="30" y="100" width="20" height="20" fill="#1a1a1a"/>
+      </svg>
+    );
+  }
+  if (type === "shop") {
+    return (
+      <svg viewBox="0 0 80 60" style={{width:"100%",height:"100%"}}>
+        <rect x="0" y="0" width="80" height="60" fill={color}/>
+        <rect x="0" y="0" width="80" height="14" fill="#dc2626"/>
+        <rect x="8" y="20" width="20" height="22" fill="#1a2f4a"/>
+        <rect x="32" y="20" width="20" height="22" fill="#1a2f4a"/>
+        <rect x="56" y="20" width="16" height="40" fill="#3a2a1a"/>
+        <rect x="58" y="22" width="12" height="36" fill="#5a4a3a"/>
+        <circle cx="68" cy="40" r="1" fill="#fbbf24"/>
+      </svg>
+    );
+  }
+  if (type === "ruko") {
+    return (
+      <svg viewBox="0 0 60 80" style={{width:"100%",height:"100%"}}>
+        <rect x="0" y="0" width="60" height="80" fill={color}/>
+        <rect x="0" y="0" width="60" height="6" fill="#000" opacity="0.4"/>
+        <rect x="8" y="12" width="14" height="14" fill="#1a2f4a"/>
+        <rect x="38" y="12" width="14" height="14" fill="#1a2f4a"/>
+        <rect x="8" y="34" width="14" height="14" fill="#1a2f4a"/>
+        <rect x="38" y="34" width="14" height="14" fill="#1a2f4a"/>
+        <rect x="22" y="55" width="16" height="25" fill="#3a2a1a"/>
+      </svg>
+    );
+  }
+  return null;
+}
+
+function Building({building}) {
+  return (
+    <div style={{
+      position:"absolute",
+      left:building.x, top:building.y,
+      width:building.w, height:building.h,
+      filter:"drop-shadow(3px 4px 0 #000a)",
+      pointerEvents:"none"
+    }}>
+      <BuildingSVG type={building.type} color={building.color}/>
+    </div>
+  );
+}
 
 // ─── LEVELS ───────────────────────────────────────────────────
 const LEVELS = {
@@ -87,10 +122,25 @@ const LEVELS = {
       { id:"house", x:1000, y:700, icon:"🏠", name:"Rumah Kokoh", safe:true,
         reason:"Dinding bata kokoh menahan angin & melindungi dari petir!" },
     ],
+    buildings: [
+      {type:"highrise", x:50, y:30, w:80, h:120, color:"#475569"},
+      {type:"highrise", x:1070, y:30, w:80, h:120, color:"#64748b"},
+      {type:"shop", x:400, y:40, w:80, h:60, color:"#7c2d12"},
+      {type:"shop", x:720, y:40, w:80, h:60, color:"#365314"},
+      {type:"ruko", x:60, y:780, w:60, h:80, color:"#78350f"},
+      {type:"ruko", x:1080, y:780, w:60, h:80, color:"#1e3a8a"},
+      {type:"shop", x:400, y:800, w:80, h:60, color:"#831843"},
+      {type:"shop", x:720, y:800, w:80, h:60, color:"#3f3f46"},
+    ],
     decorations: [
-      {type:"tree-small", x:400, y:100}, {type:"tree-small", x:800, y:100},
+      {type:"tree-small", x:400, y:200}, {type:"tree-small", x:800, y:200},
       {type:"lamp", x:350, y:450}, {type:"lamp", x:850, y:450},
-      {type:"car", x:500, y:300}, {type:"car", x:700, y:600},
+      {type:"car", x:500, y:380}, {type:"car", x:700, y:520},
+      {type:"hydrant", x:280, y:500}, {type:"hydrant", x:920, y:400},
+      {type:"trash", x:550, y:200}, {type:"trash", x:650, y:700},
+      {type:"bench", x:430, y:500}, {type:"bench", x:770, y:380},
+      {type:"sign", x:600, y:250}, {type:"sign", x:600, y:650},
+      {type:"pole", x:300, y:350}, {type:"pole", x:900, y:550},
     ]
   },
   2: {
@@ -111,11 +161,33 @@ const LEVELS = {
       { id:"house2b", x:1450, y:950, icon:"🏠", name:"Rumah Jauh", safe:true,
         reason:"Walau aman, TERLALU JAUH! Waktu habis sebelum sampai!", tooFar:true },
     ],
+    buildings: [
+      {type:"highrise", x:50, y:50, w:80, h:120, color:"#475569"},
+      {type:"highrise", x:1470, y:50, w:80, h:120, color:"#64748b"},
+      {type:"highrise", x:1470, y:200, w:80, h:120, color:"#52525b"},
+      {type:"shop", x:600, y:60, w:80, h:60, color:"#7c2d12"},
+      {type:"shop", x:1100, y:60, w:80, h:60, color:"#365314"},
+      {type:"ruko", x:60, y:600, w:60, h:80, color:"#78350f"},
+      {type:"ruko", x:60, y:900, w:60, h:80, color:"#1e3a8a"},
+      {type:"shop", x:700, y:1000, w:80, h:60, color:"#831843"},
+      {type:"shop", x:1100, y:1000, w:80, h:60, color:"#3f3f46"},
+      {type:"ruko", x:1470, y:600, w:60, h:80, color:"#581c87"},
+    ],
     decorations: [
       {type:"tree-small", x:200, y:200}, {type:"tree-small", x:1100, y:150},
       {type:"tree-small", x:1400, y:700}, {type:"tree-small", x:400, y:1000},
+      {type:"tree-small", x:600, y:200}, {type:"tree-small", x:1200, y:900},
       {type:"lamp", x:600, y:450}, {type:"lamp", x:1100, y:550},
-      {type:"car", x:850, y:700}, {type:"car", x:400, y:550}, {type:"car", x:1200, y:850},
+      {type:"lamp", x:400, y:600}, {type:"lamp", x:1300, y:700},
+      {type:"car", x:850, y:700}, {type:"car", x:400, y:550},
+      {type:"car", x:1200, y:850}, {type:"car", x:700, y:200},
+      {type:"hydrant", x:450, y:450}, {type:"hydrant", x:1150, y:450},
+      {type:"trash", x:750, y:450}, {type:"trash", x:1000, y:700},
+      {type:"bench", x:550, y:650}, {type:"bench", x:1050, y:400},
+      {type:"sign", x:800, y:300}, {type:"sign", x:800, y:800},
+      {type:"pole", x:250, y:550}, {type:"pole", x:1350, y:550},
+      {type:"pole", x:700, y:1000}, {type:"plant", x:950, y:550},
+      {type:"plant", x:350, y:750},
     ]
   },
   3: {
@@ -126,7 +198,7 @@ const LEVELS = {
     showMath: true, hasObstacles: true,
     shelters: [
       { id:"house3a", x:1200, y:400, distance:36, icon:"🏠", name:"Rumah A", safe:true,
-        reason:"Pilihan TERBAIK! Aman & jarak masih terjangkau dalam batas waktu!" },
+        reason:"Pilihan TERBAIK! Aman & jarak terjangkau dalam batas waktu!" },
       { id:"tree3", x:600, y:400, distance:36, icon:"🌳", name:"Pohon", safe:false,
         reason:"Pohon = konduktor petir! Hitungan benar pun TETAP MATI!" },
       { id:"ruins3", x:500, y:900, distance:50, icon:"🏚️", name:"Bangunan Reot", safe:false,
@@ -134,17 +206,43 @@ const LEVELS = {
       { id:"halte3", x:1400, y:900, distance:58, icon:"🛖", name:"Halte Bus", safe:false,
         reason:"Halte semi-terbuka! Angin BAHAYA walau hitunganmu cukup!" },
       { id:"house3b", x:200, y:200, distance:82, icon:"🏠", name:"Rumah B", safe:true,
-        reason:"Aman tapi TERLALU JAUH! 82÷5 = 16.4s, mepet & rawan tertabrak puing!", tooFar:true },
+        reason:"Aman tapi TERLALU JAUH! 82÷5 = 16.4s, mepet & rawan puing!", tooFar:true },
       { id:"house3c", x:1700, y:1100, distance:95, icon:"🏠", name:"Rumah C", safe:true,
         reason:"Aman tapi SANGAT JAUH! 95÷5 = 19s, MELEBIHI batas waktu!", tooFar:true },
+    ],
+    buildings: [
+      {type:"highrise", x:50, y:50, w:80, h:120, color:"#475569"},
+      {type:"highrise", x:1670, y:50, w:80, h:120, color:"#64748b"},
+      {type:"highrise", x:50, y:1030, w:80, h:120, color:"#52525b"},
+      {type:"highrise", x:1670, y:1030, w:80, h:120, color:"#3f3f46"},
+      {type:"shop", x:300, y:60, w:80, h:60, color:"#7c2d12"},
+      {type:"shop", x:1400, y:60, w:80, h:60, color:"#365314"},
+      {type:"ruko", x:60, y:500, w:60, h:80, color:"#78350f"},
+      {type:"ruko", x:1670, y:500, w:60, h:80, color:"#1e3a8a"},
+      {type:"shop", x:300, y:1060, w:80, h:60, color:"#831843"},
+      {type:"shop", x:1100, y:1060, w:80, h:60, color:"#581c87"},
+      {type:"ruko", x:1500, y:1020, w:60, h:80, color:"#0c4a6e"},
+      {type:"ruko", x:60, y:700, w:60, h:80, color:"#7c2d12"},
     ],
     decorations: [
       {type:"tree-small", x:300, y:600}, {type:"tree-small", x:1500, y:300},
       {type:"tree-small", x:1200, y:1000}, {type:"tree-small", x:700, y:1100},
+      {type:"tree-small", x:400, y:200}, {type:"tree-small", x:1400, y:600},
       {type:"lamp", x:750, y:500}, {type:"lamp", x:1100, y:700},
       {type:"lamp", x:400, y:800}, {type:"lamp", x:1400, y:500},
+      {type:"lamp", x:300, y:400}, {type:"lamp", x:1500, y:1000},
       {type:"car", x:1000, y:800}, {type:"car", x:550, y:300},
       {type:"car", x:1300, y:200}, {type:"car", x:900, y:1050},
+      {type:"car", x:700, y:700}, {type:"car", x:1450, y:800},
+      {type:"hydrant", x:550, y:500}, {type:"hydrant", x:1250, y:700},
+      {type:"trash", x:850, y:300}, {type:"trash", x:950, y:900},
+      {type:"trash", x:1400, y:400}, {type:"bench", x:700, y:500},
+      {type:"bench", x:1100, y:850}, {type:"bench", x:400, y:700},
+      {type:"sign", x:600, y:550}, {type:"sign", x:1300, y:600},
+      {type:"pole", x:250, y:850}, {type:"pole", x:1450, y:250},
+      {type:"pole", x:800, y:1000}, {type:"pole", x:1100, y:300},
+      {type:"plant", x:1000, y:500}, {type:"plant", x:600, y:800},
+      {type:"plant", x:1200, y:550}, {type:"plant", x:850, y:700},
     ]
   }
 };
@@ -155,39 +253,54 @@ function distanceMeters(x1, y1, x2, y2) {
   return Math.sqrt(dx*dx + dy*dy);
 }
 
-// ─── PATH ─────────────────────────────────────────────────────
+// ─── PATH (jalan aspal) ───────────────────────────────────────
 function PathOverlay({config}) {
   return (
-    <svg
-      width={config.mapWidth} height={config.mapHeight}
-      style={{position:"absolute",left:0,top:0,pointerEvents:"none"}}
-    >
+    <svg width={config.mapWidth} height={config.mapHeight}
+      style={{position:"absolute",left:0,top:0,pointerEvents:"none"}}>
       {config.shelters.map(s => {
         const sx = config.spawnX, sy = config.spawnY;
         return (
           <g key={`path-${s.id}`}>
+            {/* Outer (trotoar) */}
             <path d={`M ${sx} ${sy} L ${s.x} ${sy} L ${s.x} ${s.y}`}
-              stroke="#3a2a1a" strokeWidth={42} fill="none"
+              stroke="#52525b" strokeWidth={50} fill="none"
               strokeLinecap="round" strokeLinejoin="round"/>
+            {/* Aspal */}
             <path d={`M ${sx} ${sy} L ${s.x} ${sy} L ${s.x} ${s.y}`}
-              stroke="#5a4a3a" strokeWidth={36} fill="none"
+              stroke="#3f3f46" strokeWidth={42} fill="none"
               strokeLinecap="round" strokeLinejoin="round"/>
+            {/* Garis tengah putus-putus */}
             <path d={`M ${sx} ${sy} L ${s.x} ${sy} L ${s.x} ${s.y}`}
-              stroke="#7a6a5a" strokeWidth={2} fill="none"
-              strokeDasharray="8 12" strokeLinecap="round" opacity={0.5}/>
+              stroke="#fbbf24" strokeWidth={2} fill="none"
+              strokeDasharray="14 16" strokeLinecap="round" opacity={0.7}/>
           </g>
         );
       })}
+      {/* Zebra cross di setiap shelter */}
+      {config.shelters.map(s => (
+        <g key={`zebra-${s.id}`} opacity={0.6}>
+          {Array.from({length:5}).map((_,i)=>(
+            <rect key={i} x={s.x-20} y={s.y+45+i*5} width={40} height={3} fill="#fff"/>
+          ))}
+        </g>
+      ))}
     </svg>
   );
 }
 
-// ─── DECORATIONS ──────────────────────────────────────────────
+// ─── DECORATIONS (urban props) ────────────────────────────────
 function Decoration({deco}) {
   const map = {
     "tree-small": {icon:"🌲", size:36, sway:true},
     "lamp": {icon:"🪔", size:28, sway:false},
-    "car": {icon:"🚗", size:34, sway:false},
+    "car": {icon:["🚗","🚙","🚕","🚐"][Math.floor(deco.x*deco.y) % 4], size:34, sway:false},
+    "hydrant": {icon:"🧯", size:24, sway:false},
+    "trash": {icon:"🗑️", size:26, sway:false},
+    "bench": {icon:"🪑", size:28, sway:false},
+    "sign": {icon:"🚸", size:28, sway:false},
+    "pole": {icon:"📡", size:30, sway:true},
+    "plant": {icon:"🪴", size:24, sway:false},
   };
   const d = map[deco.type];
   if (!d) return null;
@@ -226,13 +339,10 @@ function Shelter({shelter, isNear}) {
   );
 }
 
-// ─── CHARACTER MANUSIA SVG (top-down) ─────────────────────────
-// Karakter dilihat dari atas: kepala (lingkaran), bahu, tangan (2), kaki (2)
+// ─── CHARACTER ────────────────────────────────────────────────
 function Character({facing, moving, slowed}) {
-  // Rotasi seluruh karakter berdasarkan arah
   const rotations = {up:0, right:90, down:180, left:270};
   const rot = rotations[facing] ?? 180;
-
   return (
     <div style={{
       width:40, height:40,
@@ -242,52 +352,27 @@ function Character({facing, moving, slowed}) {
       animation: moving ? "bodyBob .3s ease-in-out infinite" : "none"
     }}>
       <svg width="40" height="40" viewBox="0 0 40 40" style={{overflow:"visible"}}>
-        {/* Bayangan */}
         <ellipse cx="20" cy="34" rx="11" ry="3" fill="#000" opacity="0.35"/>
-
-        {/* Kaki kiri */}
-        <g style={{
-          transformOrigin:"15px 24px",
-          animation: moving ? "legSwing1 .3s ease-in-out infinite" : "none"
-        }}>
+        <g style={{transformOrigin:"15px 24px", animation: moving ? "legSwing1 .3s ease-in-out infinite" : "none"}}>
           <rect x="13" y="22" width="4" height="10" rx="1.5" fill="#1e3a8a"/>
           <rect x="12" y="30" width="6" height="3" rx="1" fill="#1a1a1a"/>
         </g>
-        {/* Kaki kanan */}
-        <g style={{
-          transformOrigin:"25px 24px",
-          animation: moving ? "legSwing2 .3s ease-in-out infinite" : "none"
-        }}>
+        <g style={{transformOrigin:"25px 24px", animation: moving ? "legSwing2 .3s ease-in-out infinite" : "none"}}>
           <rect x="23" y="22" width="4" height="10" rx="1.5" fill="#1e3a8a"/>
           <rect x="22" y="30" width="6" height="3" rx="1" fill="#1a1a1a"/>
         </g>
-
-        {/* Badan (kaos kuning) */}
         <ellipse cx="20" cy="20" rx="9" ry="7.5" fill="#fbbf24"/>
         <path d="M 11 17 Q 20 14 29 17 L 29 22 Q 20 24 11 22 Z" fill="#f59e0b"/>
-
-        {/* Tangan kiri */}
-        <g style={{
-          transformOrigin:"12px 18px",
-          animation: moving ? "armSwing1 .3s ease-in-out infinite" : "none"
-        }}>
+        <g style={{transformOrigin:"12px 18px", animation: moving ? "armSwing1 .3s ease-in-out infinite" : "none"}}>
           <ellipse cx="9" cy="20" rx="2.5" ry="4" fill="#fbbf24"/>
           <circle cx="9" cy="23" r="2.5" fill="#fcd9a8"/>
         </g>
-        {/* Tangan kanan */}
-        <g style={{
-          transformOrigin:"28px 18px",
-          animation: moving ? "armSwing2 .3s ease-in-out infinite" : "none"
-        }}>
+        <g style={{transformOrigin:"28px 18px", animation: moving ? "armSwing2 .3s ease-in-out infinite" : "none"}}>
           <ellipse cx="31" cy="20" rx="2.5" ry="4" fill="#fbbf24"/>
           <circle cx="31" cy="23" r="2.5" fill="#fcd9a8"/>
         </g>
-
-        {/* Kepala (rambut + wajah) */}
         <circle cx="20" cy="14" r="7" fill="#fcd9a8"/>
-        {/* Rambut hitam */}
         <path d="M 13 14 Q 13 7 20 7 Q 27 7 27 14 Q 27 11 24 10 Q 20 9 16 10 Q 13 11 13 14 Z" fill="#1a1a1a"/>
-        {/* Mata kecil (di bagian "depan" = atas karena top-down menghadap atas dalam koord lokal) */}
         <circle cx="17.5" cy="13" r="0.8" fill="#1a1a1a"/>
         <circle cx="22.5" cy="13" r="0.8" fill="#1a1a1a"/>
       </svg>
@@ -295,8 +380,7 @@ function Character({facing, moving, slowed}) {
   );
 }
 
-// ─── DEBRIS (puing yang interaktif) ───────────────────────────
-// Component visual saja; logic gerakan + collision di GameLevel
+// ─── DEBRIS ───────────────────────────────────────────────────
 function DebrisVisual({debris}) {
   const sprites = ["🪵","📰","🍂","🌿","📦"];
   return (
@@ -339,6 +423,123 @@ function StormBg() {
   );
 }
 
+// ─── MOBILE D-PAD CONTROLS ────────────────────────────────────
+function MobileControls({onPress, onRelease, onAction, nearShelter}) {
+  const handleStart = (dir) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onPress(dir);
+  };
+  const handleEnd = (dir) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onRelease(dir);
+  };
+
+  const dpadBtnStyle = {
+    width:54, height:54,
+    background:"rgba(15,30,56,0.7)",
+    border:"2px solid rgba(56,189,248,0.6)",
+    borderRadius:8,
+    color:"#fbbf24",
+    fontSize:22,
+    display:"flex",
+    alignItems:"center",
+    justifyContent:"center",
+    fontFamily:"'Press Start 2P',monospace",
+    backdropFilter:"blur(4px)",
+    boxShadow:"0 2px 8px rgba(0,0,0,0.5)"
+  };
+
+  return (
+    <>
+      {/* D-Pad kiri bawah */}
+      <div style={{
+        position:"fixed",
+        bottom:24, left:24,
+        zIndex:100,
+        display:"grid",
+        gridTemplateColumns:"54px 54px 54px",
+        gridTemplateRows:"54px 54px 54px",
+        gap:4
+      }}>
+        <div></div>
+        <button
+          className="dpad-btn"
+          style={dpadBtnStyle}
+          onTouchStart={handleStart("up")}
+          onTouchEnd={handleEnd("up")}
+          onTouchCancel={handleEnd("up")}
+          onMouseDown={handleStart("up")}
+          onMouseUp={handleEnd("up")}
+          onMouseLeave={handleEnd("up")}
+        >▲</button>
+        <div></div>
+
+        <button
+          className="dpad-btn"
+          style={dpadBtnStyle}
+          onTouchStart={handleStart("left")}
+          onTouchEnd={handleEnd("left")}
+          onTouchCancel={handleEnd("left")}
+          onMouseDown={handleStart("left")}
+          onMouseUp={handleEnd("left")}
+          onMouseLeave={handleEnd("left")}
+        >◀</button>
+        <div style={{...dpadBtnStyle, background:"rgba(15,30,56,0.4)", border:"2px dashed rgba(56,189,248,0.3)"}}></div>
+        <button
+          className="dpad-btn"
+          style={dpadBtnStyle}
+          onTouchStart={handleStart("right")}
+          onTouchEnd={handleEnd("right")}
+          onTouchCancel={handleEnd("right")}
+          onMouseDown={handleStart("right")}
+          onMouseUp={handleEnd("right")}
+          onMouseLeave={handleEnd("right")}
+        >▶</button>
+
+        <div></div>
+        <button
+          className="dpad-btn"
+          style={dpadBtnStyle}
+          onTouchStart={handleStart("down")}
+          onTouchEnd={handleEnd("down")}
+          onTouchCancel={handleEnd("down")}
+          onMouseDown={handleStart("down")}
+          onMouseUp={handleEnd("down")}
+          onMouseLeave={handleEnd("down")}
+        >▼</button>
+        <div></div>
+      </div>
+
+      {/* Tombol MASUK kanan bawah */}
+      <button
+        className="dpad-btn"
+        onTouchStart={(e)=>{e.preventDefault();onAction();}}
+        onMouseDown={(e)=>{e.preventDefault();onAction();}}
+        style={{
+          position:"fixed",
+          bottom:50, right:30,
+          zIndex:100,
+          width:92, height:92,
+          background: nearShelter ? "rgba(251,191,36,0.85)" : "rgba(15,30,56,0.7)",
+          border:`3px solid ${nearShelter?"#fbbf24":"rgba(56,189,248,0.6)"}`,
+          borderRadius:"50%",
+          color: nearShelter ? "#000" : "#fbbf24",
+          fontFamily:"'Press Start 2P',monospace",
+          fontSize: nearShelter ? 11 : 10,
+          backdropFilter:"blur(4px)",
+          boxShadow:"0 4px 12px rgba(0,0,0,0.5)",
+          animation: nearShelter ? "pulseGlow 0.8s infinite" : "none",
+          lineHeight: 1.4
+        }}
+      >
+        {nearShelter ? "MASUK!" : "AKSI"}
+      </button>
+    </>
+  );
+}
+
 // ─── INTRO ────────────────────────────────────────────────────
 function IntroScreen({onStart}) {
   return (
@@ -358,15 +559,17 @@ function IntroScreen({onStart}) {
           STORM<br/>SURVIVAL
         </h1>
         <p style={{fontFamily:"'Press Start 2P',monospace",fontSize:9,color:"#fbbf24",letterSpacing:2,marginBottom:24}}>
-          TOP-DOWN ADVENTURE
+          URBAN ADVENTURE
         </p>
 
         <div style={{background:"#07101e",border:"1px solid #1b2f4a",borderRadius:12,padding:18,marginBottom:18,textAlign:"left"}}>
-          <p style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:"#475569",marginBottom:12,letterSpacing:1,textTransform:"uppercase"}}>Kontrol:</p>
+          <p style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:"#475569",marginBottom:12,letterSpacing:1,textTransform:"uppercase"}}>
+            Kontrol:
+          </p>
           {[
-            ["⬅️➡️⬆️⬇️","Gerak 4 arah"],
-            ["W A S D","Alternatif gerak"],
-            ["E / SPACE","Masuk shelter"]
+            ["💻 PC","Arrow keys / WASD"],
+            ["📱 Mobile","D-pad di layar"],
+            ["🎯 Aksi","E / SPACE / Tombol MASUK"]
           ].map(([key,desc],i)=>(
             <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,fontFamily:"'Space Mono',monospace",fontSize:11}}>
               <span style={{color:"#fbbf24",fontWeight:"bold"}}>{key}</span>
@@ -376,7 +579,9 @@ function IntroScreen({onStart}) {
         </div>
 
         <div style={{background:"#07101e",border:"1px solid #1b2f4a",borderRadius:12,padding:18,marginBottom:24,textAlign:"left"}}>
-          <p style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:"#475569",marginBottom:12,letterSpacing:1,textTransform:"uppercase"}}>3 Level Tantangan:</p>
+          <p style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:"#475569",marginBottom:12,letterSpacing:1,textTransform:"uppercase"}}>
+            3 Level Tantangan:
+          </p>
           {[
             ["🎯","Level 1: Pilih tempat aman dari badai"],
             ["⏱️","Level 2: Waktu mepet, pilih dekat & aman"],
@@ -445,9 +650,9 @@ function LevelBrief({level, onStart}) {
         </div>
 
         <p style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:"#cbd5e1",marginBottom:18,lineHeight:1.5}}>
-          {level===1 && "Kenali tempat aman saat badai. Eksplorasi & masuk shelter yang tepat!"}
+          {level===1 && "Kenali tempat aman saat badai. Eksplor kota & masuk shelter tepat!"}
           {level===2 && "Waktu makin mepet! Pilih shelter yang AMAN dan dekat."}
-          {level===3 && "Hitung waktu tempuh & hindari puing! Tertabrak = melambat 1.5 detik!"}
+          {level===3 && "Hitung waktu tempuh & hindari puing!"}
         </p>
 
         <button className="btn" onClick={onStart} style={{
@@ -472,6 +677,10 @@ function GameLevel({level, onResult}) {
   const [nearShelterId, setNearShelterId] = useState(null);
   const [viewport, setViewport] = useState({w:window.innerWidth, h:window.innerHeight});
   const [debrisList, setDebrisList] = useState([]);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Touch input state
+  const touchKeys = useRef({});
 
   const keys = useRef({});
   const charXRef = useRef(config.spawnX);
@@ -484,7 +693,18 @@ function GameLevel({level, onResult}) {
   const debrisRef = useRef([]);
   const lastDebrisSpawn = useRef(0);
 
-  // Inisialisasi debris (Level 3 saja)
+  // Detect mobile
+  useEffect(()=>{
+    const checkMobile = () => {
+      const w = window.innerWidth;
+      const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      setIsMobile(w < 900 || hasTouch);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return ()=>window.removeEventListener("resize", checkMobile);
+  },[]);
+
   useEffect(()=>{
     if (!config.hasObstacles) return;
     const initial = Array.from({length:6},()=>spawnDebris(config));
@@ -552,17 +772,28 @@ function GameLevel({level, onResult}) {
     return ()=>clearInterval(t);
   },[onResult]);
 
+  // Mobile control handlers
+  const handleMobilePress = useCallback((dir) => {
+    touchKeys.current[dir] = true;
+  },[]);
+  const handleMobileRelease = useCallback((dir) => {
+    touchKeys.current[dir] = false;
+  },[]);
+  const handleMobileAction = useCallback(() => {
+    keys.current["e"] = true;
+    setTimeout(()=>{ keys.current["e"] = false; }, 100);
+  },[]);
+
   useEffect(()=>{
     const loop = ()=>{
       if (ended.current) return;
       const now = Date.now();
       const k = keys.current;
+      const t = touchKeys.current;
 
-      // Cek slowed status
       const isSlowed = now < slowedUntil.current;
       if (isSlowed !== slowed) setSlowed(isSlowed);
 
-      // Kecepatan efektif
       const baseSpeed = config.walkSpeed * PX_PER_METER / FPS;
       const effSpeed = baseSpeed * (isSlowed ? SLOW_FACTOR : 1);
 
@@ -571,10 +802,11 @@ function GameLevel({level, onResult}) {
       let newFacing = null;
       let dx = 0, dy = 0;
 
-      if (k["arrowup"]||k["w"]) { dy -= 1; newFacing = "up"; }
-      if (k["arrowdown"]||k["s"]) { dy += 1; newFacing = "down"; }
-      if (k["arrowleft"]||k["a"]) { dx -= 1; newFacing = "left"; }
-      if (k["arrowright"]||k["d"]) { dx += 1; newFacing = "right"; }
+      // Combine keyboard + touch
+      if (k["arrowup"]||k["w"]||t["up"]) { dy -= 1; newFacing = "up"; }
+      if (k["arrowdown"]||k["s"]||t["down"]) { dy += 1; newFacing = "down"; }
+      if (k["arrowleft"]||k["a"]||t["left"]) { dx -= 1; newFacing = "left"; }
+      if (k["arrowright"]||k["d"]||t["right"]) { dx += 1; newFacing = "right"; }
 
       const movingNow = dx !== 0 || dy !== 0;
       if (dx !== 0 && dy !== 0) {
@@ -594,28 +826,18 @@ function GameLevel({level, onResult}) {
       if (newFacing) setFacing(newFacing);
       setMoving(movingNow);
 
-      // Update debris
       if (config.hasObstacles) {
         let updated = debrisRef.current.map(d => ({
-          ...d,
-          x: d.x + d.vx,
-          y: d.y + d.vy,
-          rot: d.rot + d.rotSpeed
+          ...d, x: d.x + d.vx, y: d.y + d.vy, rot: d.rot + d.rotSpeed
         }));
-
-        // Buang debris yang keluar map
         updated = updated.filter(d =>
           d.x > -100 && d.x < config.mapWidth + 100 &&
           d.y > -100 && d.y < config.mapHeight + 100
         );
-
-        // Spawn debris baru tiap ~1 detik
         if (now - lastDebrisSpawn.current > 1000 && updated.length < 8) {
           updated.push(spawnDebris(config));
           lastDebrisSpawn.current = now;
         }
-
-        // Collision check (char vs debris)
         if (now - lastHitTime.current > HIT_COOLDOWN) {
           for (const d of updated) {
             const dist = Math.hypot(d.x - nx, d.y - ny);
@@ -628,12 +850,10 @@ function GameLevel({level, onResult}) {
             }
           }
         }
-
         debrisRef.current = updated;
         setDebrisList(updated);
       }
 
-      // Cek shelter terdekat
       let near = null;
       let minDist = Infinity;
       for (const sh of config.shelters) {
@@ -677,21 +897,31 @@ function GameLevel({level, onResult}) {
         transform:`translate(${-camX}px, ${-camY}px)`,
         transition:"transform .08s linear"
       }}>
+        {/* Ground texture - dark city pavement */}
         <div style={{
           position:"absolute", inset:0,
+          backgroundColor:"#0c1422",
           backgroundImage:`
-            radial-gradient(ellipse at center, #1a2333 0%, #0c1422 80%),
-            repeating-linear-gradient(0deg, transparent, transparent 60px, rgba(255,255,255,.02) 60px, rgba(255,255,255,.02) 61px),
-            repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(255,255,255,.02) 60px, rgba(255,255,255,.02) 61px)
+            radial-gradient(ellipse at center, rgba(40,60,90,0.4) 0%, transparent 70%),
+            repeating-linear-gradient(0deg, transparent, transparent 80px, rgba(255,255,255,.025) 80px, rgba(255,255,255,.025) 82px),
+            repeating-linear-gradient(90deg, transparent, transparent 80px, rgba(255,255,255,.025) 80px, rgba(255,255,255,.025) 82px)
           `
         }}/>
 
+        {/* Buildings (background, behind everything) */}
+        {config.buildings?.map((b,i)=>(
+          <Building key={`b-${i}`} building={b}/>
+        ))}
+
+        {/* Roads */}
         <PathOverlay config={config}/>
 
+        {/* Decorations (urban props) */}
         {config.decorations?.map((d,i)=>(
           <Decoration key={`deco-${i}`} deco={d}/>
         ))}
 
+        {/* Spawn marker */}
         <div style={{
           position:"absolute",
           left:config.spawnX - 30, top:config.spawnY - 30,
@@ -704,12 +934,10 @@ function GameLevel({level, onResult}) {
           <Shelter key={sh.id} shelter={sh} isNear={nearShelterId === sh.id}/>
         ))}
 
-        {/* Debris layer (Level 3) */}
         {debrisList.map(d => (
           <DebrisVisual key={d.id} debris={d}/>
         ))}
 
-        {/* Character */}
         <div style={{
           position:"absolute",
           left:charX - 20, top:charY - 20,
@@ -719,7 +947,7 @@ function GameLevel({level, onResult}) {
           <Character facing={facing} moving={moving} slowed={slowed}/>
         </div>
 
-        {nearShelterId && (
+        {nearShelterId && !isMobile && (
           <div style={{
             position:"absolute",
             left:charX - 45, top:charY - 60,
@@ -763,7 +991,6 @@ function GameLevel({level, onResult}) {
         </div>
       </div>
 
-      {/* Slowed indicator */}
       {slowed && (
         <div style={{
           position:"fixed", top:"50%", left:"50%",
@@ -805,14 +1032,27 @@ function GameLevel({level, onResult}) {
         </div>
       )}
 
-      <div style={{
-        position:"fixed",bottom:8,left:0,right:0,zIndex:50,
-        textAlign:"center",
-        fontFamily:"'Space Mono',monospace",fontSize:9,color:"#94a3b8",
-        textShadow:"1px 1px 0 #000"
-      }}>
-        ⬅⬆⬇➡ atau WASD untuk gerak | E saat dekat shelter
-      </div>
+      {/* PC hint (hide on mobile) */}
+      {!isMobile && (
+        <div style={{
+          position:"fixed",bottom:8,left:0,right:0,zIndex:50,
+          textAlign:"center",
+          fontFamily:"'Space Mono',monospace",fontSize:9,color:"#94a3b8",
+          textShadow:"1px 1px 0 #000"
+        }}>
+          ⬅⬆⬇➡ atau WASD | E saat dekat shelter
+        </div>
+      )}
+
+      {/* Mobile controls */}
+      {isMobile && (
+        <MobileControls
+          onPress={handleMobilePress}
+          onRelease={handleMobileRelease}
+          onAction={handleMobileAction}
+          nearShelter={!!nearShelterId}
+        />
+      )}
     </div>
   );
 }
@@ -831,10 +1071,10 @@ function ResultScreen({result, level, onContinue, onRetry, onHome}) {
     }
   } else if (result.type === "timeout") {
     title = "WAKTU HABIS!"; subtitle = "PETIR MENYAMBARMU!"; icon = "⚡";
-    reason = "Kamu terlalu lama atau terlalu sering tertabrak puing! Saat bencana, BERTINDAK CEPAT & HATI-HATI adalah kunci!";
+    reason = "Kamu terlalu lama atau terlalu sering tertabrak puing! Saat bencana, BERTINDAK CEPAT & HATI-HATI!";
   } else if (result.type === "too_slow") {
     title = "TIDAK SAMPAI!"; subtitle = "PETIR MENYAMBAR DI JALAN!"; icon = "⚡";
-    reason = result.shelter.reason + ` Butuh ${result.timeNeeded.toFixed(1)}s, sisa waktumu hanya ${result.timeLeft.toFixed(1)}s.`;
+    reason = result.shelter.reason + ` Butuh ${result.timeNeeded.toFixed(1)}s, sisa hanya ${result.timeLeft.toFixed(1)}s.`;
   } else {
     title = "PILIHAN SALAH!"; subtitle = "TEMPAT TIDAK AMAN!"; icon = "💀";
     reason = result.shelter.reason;
@@ -961,16 +1201,13 @@ export default function App() {
 
   const handleResult = useCallback((res) => {
     const config = LEVELS[level];
-
     if (res.type === "timeout") {
       setResult({type:"timeout"});
       setPhase("result");
       return;
     }
-
     if (res.type === "chose") {
       const sh = res.shelter;
-
       if (config.showMath) {
         const timeNeeded = res.actualDistance / config.walkSpeed;
         if (sh.tooFar && timeNeeded > config.timeLimit) {
@@ -979,13 +1216,11 @@ export default function App() {
           return;
         }
       }
-
       if (sh.tooFar && res.timeLeftAtChoice <= 2) {
         setResult({type:"too_slow", shelter:sh, timeNeeded:config.timeLimit, timeLeft:res.timeLeftAtChoice, hitCount:res.hitCount});
         setPhase("result");
         return;
       }
-
       if (sh.safe) {
         setResult({type:"win", shelter:sh, hitCount:res.hitCount});
       } else {
