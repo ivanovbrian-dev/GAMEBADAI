@@ -1617,26 +1617,31 @@ function MobileControls({onPress, onRelease, onAction, nearShelter}) {
   const handleStart = (dir) => (e) => { e.preventDefault(); e.stopPropagation(); onPress(dir); };
   const handleEnd = (dir) => (e) => { e.preventDefault(); e.stopPropagation(); onRelease(dir); };
 
+  const BTN_SIZE = 72;  // dari 54 → 72 (lebih besar, mudah ditekan)
+  const GAP = 6;
+
   const dpadBtnStyle = {
-    width:54, height:54,
-    background:"rgba(15,30,56,0.7)",
-    border:"2px solid rgba(56,189,248,0.6)",
-    borderRadius:8,
-    color:"#fbbf24", fontSize:22,
+    width: BTN_SIZE, height: BTN_SIZE,
+    background:"rgba(15,30,56,0.78)",
+    border:"3px solid rgba(56,189,248,0.7)",
+    borderRadius:10,
+    color:"#fbbf24", fontSize:28,
     display:"flex", alignItems:"center", justifyContent:"center",
     fontFamily:"'Press Start 2P',monospace",
     backdropFilter:"blur(4px)",
-    boxShadow:"0 2px 8px rgba(0,0,0,0.5)"
+    boxShadow:"0 3px 10px rgba(0,0,0,0.6)",
+    cursor:"pointer"
   };
 
   return (
     <>
+      {/* D-Pad lebih besar di kiri bawah */}
       <div style={{
-        position:"fixed", bottom:24, left:24, zIndex:100,
+        position:"fixed", bottom:36, left:24, zIndex:100,
         display:"grid",
-        gridTemplateColumns:"54px 54px 54px",
-        gridTemplateRows:"54px 54px 54px",
-        gap:4
+        gridTemplateColumns:`${BTN_SIZE}px ${BTN_SIZE}px ${BTN_SIZE}px`,
+        gridTemplateRows:`${BTN_SIZE}px ${BTN_SIZE}px ${BTN_SIZE}px`,
+        gap:GAP
       }}>
         <div></div>
         <button className="dpad-btn" style={dpadBtnStyle}
@@ -1649,7 +1654,12 @@ function MobileControls({onPress, onRelease, onAction, nearShelter}) {
           onTouchStart={handleStart("left")} onTouchEnd={handleEnd("left")} onTouchCancel={handleEnd("left")}
           onMouseDown={handleStart("left")} onMouseUp={handleEnd("left")} onMouseLeave={handleEnd("left")}
         >◀</button>
-        <div style={{...dpadBtnStyle, background:"rgba(15,30,56,0.4)", border:"2px dashed rgba(56,189,248,0.3)"}}></div>
+        <div style={{
+          ...dpadBtnStyle,
+          background:"rgba(15,30,56,0.4)",
+          border:"3px dashed rgba(56,189,248,0.3)",
+          cursor:"default"
+        }}></div>
         <button className="dpad-btn" style={dpadBtnStyle}
           onTouchStart={handleStart("right")} onTouchEnd={handleEnd("right")} onTouchCancel={handleEnd("right")}
           onMouseDown={handleStart("right")} onMouseUp={handleEnd("right")} onMouseLeave={handleEnd("right")}
@@ -1663,22 +1673,24 @@ function MobileControls({onPress, onRelease, onAction, nearShelter}) {
         <div></div>
       </div>
 
+      {/* Tombol Aksi lebih besar di kanan bawah */}
       <button className="dpad-btn"
         onTouchStart={(e)=>{e.preventDefault();onAction();}}
         onMouseDown={(e)=>{e.preventDefault();onAction();}}
         style={{
-          position:"fixed", bottom:50, right:30, zIndex:100,
-          width:92, height:92,
-          background: nearShelter ? "rgba(251,191,36,0.85)" : "rgba(15,30,56,0.7)",
-          border:`3px solid ${nearShelter?"#fbbf24":"rgba(56,189,248,0.6)"}`,
+          position:"fixed", bottom:80, right:36, zIndex:100,
+          width:120, height:120,
+          background: nearShelter ? "rgba(251,191,36,0.9)" : "rgba(15,30,56,0.78)",
+          border:`4px solid ${nearShelter?"#fbbf24":"rgba(56,189,248,0.7)"}`,
           borderRadius:"50%",
           color: nearShelter ? "#000" : "#fbbf24",
           fontFamily:"'Press Start 2P',monospace",
-          fontSize: nearShelter ? 11 : 10,
+          fontSize: nearShelter ? 14 : 13,
           backdropFilter:"blur(4px)",
-          boxShadow:"0 4px 12px rgba(0,0,0,0.5)",
+          boxShadow:"0 5px 15px rgba(0,0,0,0.6)",
           animation: nearShelter ? "pulseGlow 0.8s infinite" : "none",
-          lineHeight: 1.4
+          lineHeight: 1.4,
+          cursor:"pointer"
         }}
       >
         {nearShelter ? "MASUK!" : "AKSI"}
@@ -1703,7 +1715,7 @@ function IntroScreen({onStart}) {
       }}>
         <div style={{fontSize:56,marginBottom:12,animation:"pulseGlow 2s infinite"}}>🌪️</div>
         <h1 style={{fontFamily:"'Press Start 2P',monospace",fontSize:18,color:"#38bdf8",lineHeight:1.8,marginBottom:6}}>
-          STORM<br/>SURVIVAL
+          SELAMATKAN<br/>AKUUU!!!
         </h1>
         <p style={{fontFamily:"'Press Start 2P',monospace",fontSize:9,color:"#fbbf24",letterSpacing:2,marginBottom:24}}>
           URBAN ADVENTURE
@@ -1988,6 +2000,8 @@ function GameLevel({level, config, onResult}) {
   const [viewport, setViewport] = useState({w:window.innerWidth, h:window.innerHeight});
   const [debrisList, setDebrisList] = useState([]);
   const [isMobile, setIsMobile] = useState(false);
+  // Manual override: user bisa paksa show/hide controls
+  const [forceShowControls, setForceShowControls] = useState(false);
   // Level 3: health system (3 nyawa)
   const [health, setHealth] = useState(3);
   const [respawnFeedback, setRespawnFeedback] = useState(null);
@@ -2008,12 +2022,17 @@ function GameLevel({level, config, onResult}) {
   const respawnLockUntil = useRef(0); // hindari double-trigger respawn
   const timerPaused = useRef(false);    // pause timer saat respawn, lanjut saat input
   const eKeyConsumed = useRef(false);   // tombol E harus dilepas dulu setelah respawn
+  const lastLoopTime = useRef(0);       // untuk delta-time agar kecepatan konstan di semua refresh rate
 
   useEffect(()=>{
     const checkMobile = () => {
       const w = window.innerWidth;
-      const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      setIsMobile(w < 900 || hasTouch);
+      const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
+      // Cek user agent juga (lebih reliable di sebagian browser)
+      const ua = navigator.userAgent || "";
+      const isMobileUA = /android|iphone|ipad|ipod|webos|blackberry|opera mini|iemobile|mobile/i.test(ua);
+      // Mobile jika: layar kecil ATAU support touch ATAU user-agent mobile
+      setIsMobile(w < 900 || hasTouch || isMobileUA);
     };
     checkMobile();
     window.addEventListener("resize", checkMobile);
@@ -2144,14 +2163,28 @@ function GameLevel({level, config, onResult}) {
   useEffect(()=>{
     const loop = ()=>{
       if (ended.current) return;
-      const now = Date.now();
+      const now = performance.now();  // Lebih akurat dari Date.now() di mobile
+      const dateNow = Date.now();     // untuk compatibility dengan timing lain
       const k = keys.current;
       const t = touchKeys.current;
 
-      const isSlowed = now < slowedUntil.current;
+      // === DELTA TIME (frame-rate independent) ===
+      // Hitung selisih waktu sejak frame terakhir (dalam detik)
+      let deltaSec = 1/60; // default fallback
+      if (lastLoopTime.current > 0) {
+        deltaSec = (now - lastLoopTime.current) / 1000;
+        // Clamp: minimum 1/120 (saat HP 120Hz), maksimum 1/20 (saat lag berat)
+        deltaSec = Math.max(1/120, Math.min(0.05, deltaSec));
+      }
+      lastLoopTime.current = now;
+
+      const isSlowed = dateNow < slowedUntil.current;
       if (isSlowed !== slowed) setSlowed(isSlowed);
 
-      const baseSpeed = config.walkSpeed * PX_PER_METER / FPS;
+      // walkSpeed (m/s) × PX_PER_METER (px/m) = pixel per detik
+      // dikali deltaSec → pixel per frame (tergantung refresh rate)
+      const pixelPerSec = config.walkSpeed * PX_PER_METER;
+      const baseSpeed = pixelPerSec * deltaSec;
       const effSpeed = baseSpeed * (isSlowed ? SLOW_FACTOR : 1);
 
       let nx = charXRef.current;
@@ -2218,24 +2251,29 @@ function GameLevel({level, config, onResult}) {
       setMoving(movingNow);
 
       if (config.hasObstacles) {
+        // Scale debris velocity dengan deltaSec * 60 (asumsi vx/vy didesain untuk 60fps)
+        const debrisScale = deltaSec * 60;
         let updated = debrisRef.current.map(d => ({
-          ...d, x: d.x + d.vx, y: d.y + d.vy, rot: d.rot + d.rotSpeed
+          ...d,
+          x: d.x + d.vx * debrisScale,
+          y: d.y + d.vy * debrisScale,
+          rot: d.rot + d.rotSpeed * debrisScale
         }));
         updated = updated.filter(d =>
           d.x > -100 && d.x < config.mapWidth + 100 &&
           d.y > -100 && d.y < config.mapHeight + 100
         );
-        if (now - lastDebrisSpawn.current > 1000 && updated.length < 8) {
+        if (dateNow - lastDebrisSpawn.current > 1000 && updated.length < 8) {
           updated.push(spawnDebris(config));
-          lastDebrisSpawn.current = now;
+          lastDebrisSpawn.current = dateNow;
         }
-        if (now - lastHitTime.current > HIT_COOLDOWN) {
+        if (dateNow - lastHitTime.current > HIT_COOLDOWN) {
           for (const d of updated) {
             const dist = Math.hypot(d.x - nx, d.y - ny);
             const threshold = (d.size/2) * 0.6 + CHAR_HITBOX/2;
             if (dist < threshold) {
-              lastHitTime.current = now;
-              slowedUntil.current = now + SLOW_DURATION;
+              lastHitTime.current = dateNow;
+              slowedUntil.current = dateNow + SLOW_DURATION;
               setHitCount(h => h + 1);
               break;
             }
@@ -2353,8 +2391,13 @@ function GameLevel({level, config, onResult}) {
   // eslint-disable-next-line
   },[]);
 
-  const camX = Math.max(0, Math.min(config.mapWidth - viewport.w, charX - viewport.w/2));
-  const camY = Math.max(0, Math.min(config.mapHeight - viewport.h, charY - viewport.h/2));
+  // Mobile: zoom out sedikit (0.75x) agar viewport menampilkan area lebih luas
+  // Akibatnya karakter terlihat bergerak lebih cepat secara relatif terhadap map
+  const zoom = isMobile ? 0.75 : 1;
+  const effectiveViewportW = viewport.w / zoom;
+  const effectiveViewportH = viewport.h / zoom;
+  const camX = Math.max(0, Math.min(config.mapWidth - effectiveViewportW, charX - effectiveViewportW/2));
+  const camY = Math.max(0, Math.min(config.mapHeight - effectiveViewportH, charY - effectiveViewportH/2));
   const panic = timeLeft <= 5;
 
   return (
@@ -2369,7 +2412,8 @@ function GameLevel({level, config, onResult}) {
       <div style={{
         position:"absolute", left:0, top:0,
         width:config.mapWidth, height:config.mapHeight,
-        transform:`translate(${-camX}px, ${-camY}px)`,
+        transform:`scale(${zoom}) translate(${-camX}px, ${-camY}px)`,
+        transformOrigin: "top left",
         transition:"transform .08s linear"
       }}>
         {/* City grid (jalan + blok kota) sebagai background */}
@@ -2428,6 +2472,19 @@ function GameLevel({level, config, onResult}) {
             <span style={{fontFamily:"'Press Start 2P',monospace",fontSize:10,color:"#fbbf24"}}>LEVEL {level}</span>
           </div>
           <MuteButton/>
+          {/* Toggle Mobile Controls — manual override */}
+          <button
+            onClick={()=>setForceShowControls(v=>!v)}
+            style={{
+              background:(isMobile || forceShowControls) ? "#1e3a8a" : "#0a1428",
+              border:"1px solid #1b2f4a",
+              padding:"6px 10px", borderRadius:6,
+              cursor:"pointer", color:"#fbbf24",
+              fontSize:14, lineHeight:1,
+              fontFamily:"'Press Start 2P',monospace"
+            }}
+            title="Toggle on-screen controls (D-pad)"
+          >🎮</button>
         </div>
 
         {/* Health Bar — hanya di Level 3 */}
@@ -2645,7 +2702,7 @@ function GameLevel({level, config, onResult}) {
         </div>
       )}
 
-      {isMobile && (
+      {(isMobile || forceShowControls) && (
         <MobileControls
           onPress={handleMobilePress}
           onRelease={handleMobileRelease}
