@@ -341,14 +341,18 @@ function randomPosition(mapWidth, mapHeight, existing, minDist = 280, margin = 1
 }
 
 // ─── LEVEL GENERATORS ─────────────────────────────────────────
-function generateLevel1() {
-  const mapWidth = 1200, mapHeight = 900;
-  const spawnX = 600, spawnY = 450;
+function generateLevel1(isMobile = false) {
+  // Mobile: map lebih kecil agar jarak shelter terlihat di layar HP
+  const mapWidth = isMobile ? 900 : 1200;
+  const mapHeight = isMobile ? 700 : 900;
+  const spawnX = mapWidth / 2;
+  const spawnY = mapHeight / 2;
   const existing = [{x:spawnX, y:spawnY}];
 
   const types = ["tree","halte","ruins","house"];
+  const minShelterDist = isMobile ? 200 : 280;
   const shelters = types.map((t,i) => {
-    const pos = randomPosition(mapWidth, mapHeight, existing, 280);
+    const pos = randomPosition(mapWidth, mapHeight, existing, minShelterDist);
     existing.push(pos);
     return { id:`${t}-${i}`, ...SHELTER_TEMPLATES[t], ...pos };
   });
@@ -376,9 +380,12 @@ function generateLevel1() {
   };
 }
 
-function generateLevel2() {
-  const mapWidth = 1600, mapHeight = 1100;
-  const spawnX = 800, spawnY = 550;
+function generateLevel2(isMobile = false) {
+  // Mobile: map lebih kecil
+  const mapWidth = isMobile ? 1200 : 1600;
+  const mapHeight = isMobile ? 850 : 1100;
+  const spawnX = mapWidth / 2;
+  const spawnY = mapHeight / 2;
   const existing = [{x:spawnX, y:spawnY}];
 
   // 1 rumah dekat (aman), 1 rumah jauh (tooFar), + bahaya
@@ -391,10 +398,10 @@ function generateLevel2() {
       // Rumah dekat: 250-380 px dari spawn (25-38m → 5-7.6 detik untuk capai)
       pos = positionNearSpawn(spawnX, spawnY, mapWidth, mapHeight, existing, 250, 380);
     } else if (i === tooFarIndex) {
-      // Rumah jauh: minimal 600 px (>60m → butuh >12s, MUSTAHIL dalam 9s)
-      pos = positionFarFromSpawn(spawnX, spawnY, mapWidth, mapHeight, existing, 600);
+      // Rumah jauh: minimal 500 px di mobile, 600 px di desktop
+      pos = positionFarFromSpawn(spawnX, spawnY, mapWidth, mapHeight, existing, isMobile ? 500 : 600);
     } else {
-      pos = randomPosition(mapWidth, mapHeight, existing, 280);
+      pos = randomPosition(mapWidth, mapHeight, existing, isMobile ? 220 : 280);
     }
     existing.push(pos);
     return {
@@ -425,9 +432,12 @@ function generateLevel2() {
   };
 }
 
-function generateLevel3() {
-  const mapWidth = 2000, mapHeight = 1400;
-  const spawnX = 1000, spawnY = 700;
+function generateLevel3(isMobile = false) {
+  // Mobile: map lebih kecil agar pemain bisa lihat rumah aman tanpa terlalu jauh
+  const mapWidth = isMobile ? 1500 : 2000;
+  const mapHeight = isMobile ? 1100 : 1400;
+  const spawnX = mapWidth / 2;
+  const spawnY = mapHeight / 2;
   const timeLimit = 13;
   const walkSpeed = 5;
   const maxReachableDist = walkSpeed * timeLimit;
@@ -436,9 +446,21 @@ function generateLevel3() {
   function tryGenerate() {
     const existing = [{x:spawnX, y:spawnY}];
 
-    const correctDist = 55 + Math.floor(Math.random() * 5);
-    const wrongDist1  = 70 + Math.floor(Math.random() * 5);
-    const wrongDist2  = 80 + Math.floor(Math.random() * 7);
+    // Jarak rumah di-skala untuk mobile agar fit di map yang lebih kecil
+    // Tetap pertahankan: rumah benar terjangkau, rumah salah MUSTAHIL dicapai
+    // Timer 13s × speed 5 = max 65m. Jadi rumah salah harus >65m
+    // Mobile: rumah benar 45-49m (9-9.8s), rumah salah 70-78m (mustahil)
+    // Desktop: rumah benar 55-59m, rumah salah 70-86m (mustahil)
+    let correctDist, wrongDist1, wrongDist2;
+    if (isMobile) {
+      correctDist = 45 + Math.floor(Math.random() * 4);   // 45-48m → 9-9.6s
+      wrongDist1  = 70 + Math.floor(Math.random() * 4);   // 70-73m → 14-14.6s (mustahil)
+      wrongDist2  = 76 + Math.floor(Math.random() * 4);   // 76-79m → ~15.5s (sangat mustahil)
+    } else {
+      correctDist = 55 + Math.floor(Math.random() * 5);
+      wrongDist1  = 70 + Math.floor(Math.random() * 5);
+      wrongDist2  = 80 + Math.floor(Math.random() * 7);
+    }
     const distMeters = [correctDist, wrongDist1, wrongDist2];
 
     const labels = ["A","B","C"];
@@ -582,7 +604,7 @@ function generateLevel3() {
     const shuffledLabels = [...labels].sort(()=>Math.random()-0.5);
 
     const pseudoShelters = shuffledLabels.map((label, i) => {
-      const distM = [56, 72, 82][i];
+      const distM = isMobile ? [46, 71, 78][i] : [56, 72, 82][i];
       const pos = positionAtDistance(spawnX, spawnY, mapWidth, mapHeight, existing, distM * PX_PER_METER, 40);
       existing.push(pos);
       return {
@@ -1715,7 +1737,7 @@ function IntroScreen({onStart}) {
       }}>
         <div style={{fontSize:56,marginBottom:12,animation:"pulseGlow 2s infinite"}}>🌪️</div>
         <h1 style={{fontFamily:"'Press Start 2P',monospace",fontSize:18,color:"#38bdf8",lineHeight:1.8,marginBottom:6}}>
-          SELAMATKAN<br/>AKUUU!!!
+          STORM<br/>SURVIVAL
         </h1>
         <p style={{fontFamily:"'Press Start 2P',monospace",fontSize:9,color:"#fbbf24",letterSpacing:2,marginBottom:24}}>
           URBAN ADVENTURE
@@ -2027,12 +2049,14 @@ function GameLevel({level, config, onResult}) {
   useEffect(()=>{
     const checkMobile = () => {
       const w = window.innerWidth;
-      const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
-      // Cek user agent juga (lebih reliable di sebagian browser)
       const ua = navigator.userAgent || "";
-      const isMobileUA = /android|iphone|ipad|ipod|webos|blackberry|opera mini|iemobile|mobile/i.test(ua);
-      // Mobile jika: layar kecil ATAU support touch ATAU user-agent mobile
-      setIsMobile(w < 900 || hasTouch || isMobileUA);
+      // Deteksi PASTI mobile via user agent (paling reliable)
+      const isMobileUA = /android|iphone|ipad|ipod|webos|blackberry|opera mini|iemobile/i.test(ua);
+      // Atau layar SANGAT kecil (HP portrait <700px)
+      const isSmallScreen = w < 700;
+      // CATATAN: TIDAK pakai 'hasTouch' karena banyak laptop touchscreen dengan layar besar
+      // yang sebenarnya pemain mau pakai keyboard
+      setIsMobile(isMobileUA || isSmallScreen);
     };
     checkMobile();
     window.addEventListener("resize", checkMobile);
@@ -2602,10 +2626,14 @@ function GameLevel({level, config, onResult}) {
         </div>
       )}
 
-      {/* Reminder soal di level 3 */}
+      {/* Reminder soal di level 3 — sisakan ruang untuk minimap di kanan */}
       {config.isLevel3 && (
         <div style={{
-          position:"fixed",top:56,left:8,right:8,zIndex:50,
+          position:"fixed",
+          top: isMobile ? 144 : 56,  // di mobile, taruh DI BAWAH minimap
+          left:8,
+          right: isMobile ? 8 : 200,  // di desktop, beri ruang untuk minimap
+          zIndex:50,
           background:"#1a1230ee",border:"1px solid #a78bfa44",
           borderRadius:8,padding:"6px 10px",
           backdropFilter:"blur(4px)",textAlign:"center"
@@ -2616,33 +2644,37 @@ function GameLevel({level, config, onResult}) {
         </div>
       )}
 
-      {/* Minimap Level 3 — tunjukkan posisi semua shelter & player */}
-      {config.isLevel3 && !isMobile && (
-        <div style={{
-          position:"fixed",
-          top:90, right:16, zIndex:55,
-          width:160, height:120,
-          background:"#0a1428dd",
-          border:"2px solid #a78bfa66",
-          borderRadius:8,
-          padding:6,
-          backdropFilter:"blur(4px)"
-        }}>
+      {/* Minimap — tunjukkan posisi semua shelter & player (semua level) */}
+      <div style={{
+        position:"fixed",
+        top: isMobile ? 56 : 90,
+        right: isMobile ? 8 : 16,
+        zIndex:55,
+        width: isMobile ? 110 : 160,
+        height: isMobile ? 82 : 120,
+        background:"#0a1428dd",
+        border:"2px solid #a78bfa66",
+        borderRadius:8,
+        padding: isMobile ? 4 : 6,
+        backdropFilter:"blur(4px)"
+      }}>
           <div style={{
             fontFamily:"'Press Start 2P',monospace",fontSize:7,color:"#a78bfa",
-            textAlign:"center",marginBottom:4
+            textAlign:"center",marginBottom:3
           }}>🗺️ PETA MINI</div>
           <div style={{
             position:"relative",
-            width:"100%", height:90,
+            width:"100%", height: isMobile ? 56 : 90,
             background:"#000",
             borderRadius:4,
             overflow:"hidden"
           }}>
             {/* Shelter markers (scaled to minimap) */}
             {config.shelters.map(s => {
-              const mx = (s.x / config.mapWidth) * 148;
-              const my = (s.y / config.mapHeight) * 86;
+              const innerW = isMobile ? 100 : 148;
+              const innerH = isMobile ? 54 : 86;
+              const mx = (s.x / config.mapWidth) * innerW;
+              const my = (s.y / config.mapHeight) * innerH;
               const isHouse = s.safe === true;
               // Catatan: SEMUA rumah terlihat SAMA di minimap (hijau)
               // Pemain harus eksplor & hitung untuk tahu mana yang benar
@@ -2654,14 +2686,14 @@ function GameLevel({level, config, onResult}) {
                   borderRadius: isHouse ? 0 : "50%",
                   background: isHouse ? "#4ade80" : "#f87171",
                 }}
-                title={isHouse ? `Rumah ${s.label}` : s.name}/>
+                title={isHouse ? `Rumah ${s.label || ""}` : s.name}/>
               );
             })}
             {/* Player position */}
             <div style={{
               position:"absolute",
-              left:(charX / config.mapWidth) * 148 - 3,
-              top:(charY / config.mapHeight) * 86 - 3,
+              left:(charX / config.mapWidth) * (isMobile ? 100 : 148) - 3,
+              top:(charY / config.mapHeight) * (isMobile ? 54 : 86) - 3,
               width:6, height:6,
               borderRadius:"50%",
               background:"#38bdf8",
@@ -2671,25 +2703,26 @@ function GameLevel({level, config, onResult}) {
             {/* Spawn point marker */}
             <div style={{
               position:"absolute",
-              left:(config.spawnX / config.mapWidth) * 148 - 4,
-              top:(config.spawnY / config.mapHeight) * 86 - 4,
+              left:(config.spawnX / config.mapWidth) * (isMobile ? 100 : 148) - 4,
+              top:(config.spawnY / config.mapHeight) * (isMobile ? 54 : 86) - 4,
               width:8, height:8,
               borderRadius:"50%",
               border:"1px dashed #94a3b8",
               opacity:0.5
             }}/>
           </div>
-          <div style={{
-            display:"flex",justifyContent:"space-between",
-            fontFamily:"'Space Mono',monospace",fontSize:7,color:"#94a3b8",
-            marginTop:3
-          }}>
-            <span>🟢 Rumah</span>
-            <span>🔴 Bahaya</span>
-            <span>🔵 Kamu</span>
-          </div>
+          {!isMobile && (
+            <div style={{
+              display:"flex",justifyContent:"space-between",
+              fontFamily:"'Space Mono',monospace",fontSize:7,color:"#94a3b8",
+              marginTop:3
+            }}>
+              <span>🟢 Rumah</span>
+              <span>🔴 Bahaya</span>
+              <span>🔵 Kamu</span>
+            </div>
+          )}
         </div>
-      )}
 
       {!isMobile && (
         <div style={{
@@ -2887,11 +2920,22 @@ export default function App() {
   const [config, setConfig] = useState(null);
   const [result, setResult] = useState(null);
 
+  // Detect mobile sekali di awal — dipakai untuk size map yang lebih kecil
+  const isMobileRef = useRef(false);
+  useEffect(()=>{
+    const w = window.innerWidth;
+    const ua = navigator.userAgent || "";
+    const isMobileUA = /android|iphone|ipad|ipod|webos|blackberry|opera mini|iemobile/i.test(ua);
+    const isSmallScreen = w < 700;
+    isMobileRef.current = isMobileUA || isSmallScreen;
+  },[]);
+
   // Generate level fresh
   const generateLevelConfig = useCallback((lvl) => {
-    if (lvl === 1) return generateLevel1();
-    if (lvl === 2) return generateLevel2();
-    if (lvl === 3) return generateLevel3();
+    const mobile = isMobileRef.current;
+    if (lvl === 1) return generateLevel1(mobile);
+    if (lvl === 2) return generateLevel2(mobile);
+    if (lvl === 3) return generateLevel3(mobile);
     return null;
   },[]);
 
