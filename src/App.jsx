@@ -1737,7 +1737,7 @@ function IntroScreen({onStart}) {
       }}>
         <div style={{fontSize:56,marginBottom:12,animation:"pulseGlow 2s infinite"}}>🌪️</div>
         <h1 style={{fontFamily:"'Press Start 2P',monospace",fontSize:18,color:"#38bdf8",lineHeight:1.8,marginBottom:6}}>
-          STORM<br/>SURVIVAL
+          SELAMATKAN<br/>AKUUUU!!!
         </h1>
         <p style={{fontFamily:"'Press Start 2P',monospace",fontSize:9,color:"#fbbf24",letterSpacing:2,marginBottom:24}}>
           URBAN ADVENTURE
@@ -2883,7 +2883,7 @@ function VictoryScreen({onRestart}) {
       }}>
         <div style={{fontSize:60,marginBottom:12,animation:"pulseGlow 2s infinite"}}>🏆</div>
         <div style={{fontFamily:"'Press Start 2P',monospace",fontSize:16,color:"#fbbf24",lineHeight:1.8,marginBottom:8}}>
-          STORM<br/>SURVIVOR!
+          KAMU<br/>SELAMAT!
         </div>
         <div style={{fontFamily:"'Press Start 2P',monospace",fontSize:9,color:"#fde68a",letterSpacing:1,marginBottom:20}}>
           SEMUA LEVEL DITAKLUKKAN
