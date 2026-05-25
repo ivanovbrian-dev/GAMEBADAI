@@ -438,7 +438,7 @@ function generateLevel3(isMobile = false) {
   const mapHeight = isMobile ? 1100 : 1400;
   const spawnX = mapWidth / 2;
   const spawnY = mapHeight / 2;
-  const timeLimit = 13;
+  const timeLimit = 20;
   const walkSpeed = 5;
   const maxReachableDist = walkSpeed * timeLimit;
 
